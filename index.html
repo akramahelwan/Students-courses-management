@@ -114,12 +114,7 @@
   <footer class="small"></footer>
 
   <script>
-    const api = {
-      courses: (id='') => '/api/courses' + (id ? '/' + id : ''),
-      students: (id='') => '/api/students' + (id ? '/' + id : ''),
-      register: (sid) => `/api/students/${sid}/register`,
-      unregister: (sid) => `/api/students/${sid}/unregister`
-    };
+    const api ="https://courses-students-management-irwe.onrender.com";
 
     // State
     let courses = [];
