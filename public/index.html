@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin CRUD Panel</title>
+  <style>
+    :root{
+      --bg:#0b1220; --card:#0f1724; --muted:#9aa6b2; --accent:#22c1c3; --danger:#ef4444;
+      --radius:10px; --shadow: 0 8px 24px rgba(2,6,23,0.6);
+    }
+    *{box-sizing:border-box;font-family:Inter, 'Segoe UI', Tahoma, sans-serif}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),#07101a);color:#e6eef8;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+    header{width:100%;max-width:1200px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between}
+    header h1{margin:0;font-size:20px}
+
+    main{width:95%;max-width:1200px;margin-bottom:48px;display:grid;grid-template-columns:1fr;gap:20px}
+    @media(min-width:900px){ main{grid-template-columns: 2fr 1fr} }
+
+    .card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:600px){ .grid{grid-template-columns:1fr 1fr} }
+
+    form{display:flex;flex-direction:column;gap:8px}
+    input,select,button{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:#08121a;color:inherit}
+    input::placeholder{color:var(--muted)}
+    button{background:linear-gradient(90deg,var(--accent),#0ea5a2);color:#021014;border:none;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left;font-size:14px}
+    th{color:#07151a;background:linear-gradient(90deg,#a7f3d0,#67e8f9);color:#022}
+    .actions button{margin-right:6px;padding:6px 8px;border-radius:8px}
+
+    .muted{color:var(--muted);font-size:13px}
+    .small{font-size:13px;color:var(--muted)}
+
+    footer{color:var(--muted);margin-top:12px}
+
+    /* responsive tweaks */
+    @media(max-width:480px){ header{padding:12px} input,select,button{font-size:14px} th,td{font-size:13px} }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Admin CRUD — Students & Courses</h1>
+    
+  </header>
+
+  <main>
+    <section class="card" id="left">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div>
+          <strong>Courses</strong>
+          <div class="muted">Create, edit and delete courses (title + code)</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="course-title" placeholder="Course title" />
+          <input id="course-code" placeholder="Course code (e.g. CS101)" style="width:140px" />
+          <button id="save-course">Add / Save</button>
+        </div>
+      </div>
+
+      <table id="courses-table" aria-label="Courses table">
+        <thead>
+          <tr><th>Title</th><th>Code</th><th>Actions</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <hr style="border:none;height:12px;background:transparent" />
+
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <strong>Students</strong>
+          <div class="muted">Create, edit and delete students</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="student-name" placeholder="Student name" />
+          <input id="student-email" placeholder="Email (optional)" style="width:200px" />
+          <button id="save-student">Add / Save</button>
+        </div>
+      </div>
+
+      <table id="students-table" aria-label="Students table">
+        <thead><tr><th>Name</th><th>Email</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <aside class="card">
+      <div style="margin-bottom:12px">
+        <strong>Manage Registration</strong>
+        <div class="muted">Select a student and a course, then Register or Unregister</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <select id="student-select"><option value="">-- Select student --</option></select>
+        <select id="course-select"><option value="">-- Select course --</option></select>
+        <div style="display:flex;gap:8px">
+          <button id="register-btn">Register</button>
+          <button id="unregister-btn" class="ghost">Unregister</button>
+        </div>
+      </div>
+
+      <hr style="margin:12px 0;border:none;height:8px;background:transparent" />
+
+      <div>
+        <strong>Student Details</strong>
+        <div id="student-details" class="small muted" style="margin-top:8px">Select a student to see registrations</div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="small"></footer>
+
+  <script>
+    const api = {
+      courses: (id='') => '/api/courses' + (id ? '/' + id : ''),
+      students: (id='') => '/api/students' + (id ? '/' + id : ''),
+      register: (sid) => `/api/students/${sid}/register`,
+      unregister: (sid) => `/api/students/${sid}/unregister`
+    };
+
+    // State
+    let courses = [];
+    let students = [];
+    let editingCourseId = '';
+    let editingStudentId = '';
+
+    // DOM
+    const coursesTbody = document.querySelector('#courses-table tbody');
+    const studentsTbody = document.querySelector('#students-table tbody');
+    const courseTitleInput = document.getElementById('course-title');
+    const courseCodeInput = document.getElementById('course-code');
+    const saveCourseBtn = document.getElementById('save-course');
+    const studentNameInput = document.getElementById('student-name');
+    const studentEmailInput = document.getElementById('student-email');
+    const saveStudentBtn = document.getElementById('save-student');
+    const studentSelect = document.getElementById('student-select');
+    const courseSelect = document.getElementById('course-select');
+    const registerBtn = document.getElementById('register-btn');
+    const unregisterBtn = document.getElementById('unregister-btn');
+    const studentDetails = document.getElementById('student-details');
+
+    // Load all
+    async function loadAll(){ await Promise.all([loadCourses(), loadStudents()]); }
+
+    async function loadCourses(){
+      try{
+        const res = await fetch(api.courses());
+        courses = await res.json();
+        renderCourses();
+        fillCourseSelect();
+      }catch(e){ console.error('loadCourses', e); }
+    }
+
+    async function loadStudents(){
+      try{
+        const res = await fetch(api.students());
+        students = await res.json();
+        renderStudents();
+        fillStudentSelect();
+      }catch(e){ console.error('loadStudents', e); }
+    }
+
+    function renderCourses(){
+      coursesTbody.innerHTML = '';
+      if(!Array.isArray(courses) || courses.length === 0){ coursesTbody.innerHTML = '<tr><td colspan="3" class="small muted">No courses</td></tr>'; return; }
+      courses.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${escapeHtml(c.title)}</td><td>${escapeHtml(c.code)}</td><td class="actions">
+          <button onclick='startEditCourse("${c._id}")'>Edit</button>
+          <button onclick='deleteCourse("${c._id}")'>Delete</button>
+        </td>`;
+        coursesTbody.appendChild(tr);
+      });
+    }
+
+    function renderStudents(){
+      studentsTbody.innerHTML = '';
+      if(!Array.isArray(students) || students.length === 0){ studentsTbody.innerHTML = '<tr><td colspan="3" class="small muted">No students</td></tr>'; return; }
+      students.forEach(s => {
+        const email = s.email || '-';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${escapeHtml(s.name)}</td><td>${escapeHtml(email)}</td><td class="actions">
+          <button onclick='startEditStudent("${s._id}")'>Edit</button>
+          <button onclick='deleteStudent("${s._id}")'>Delete</button>
+          <button onclick='showStudentDetails("${s._id}")'>Details</button>
+        </td>`;
+        studentsTbody.appendChild(tr);
+      });
+    }
+
+    function fillCourseSelect(){
+      courseSelect.innerHTML = '<option value="">-- Select course --</option>';
+      courses.forEach(c => { const opt = document.createElement('option'); opt.value = c._id; opt.textContent = `${c.title} — ${c.code}`; courseSelect.appendChild(opt); });
+    }
+
+    function fillStudentSelect(){
+      studentSelect.innerHTML = '<option value="">-- Select student --</option>';
+      students.forEach(s => { const opt = document.createElement('option'); opt.value = s._id; opt.textContent = s.name; studentSelect.appendChild(opt); });
+    }
+
+    // Course actions
+    saveCourseBtn.addEventListener('click', async ()=>{
+      const title = courseTitleInput.value.trim();
+      const code = courseCodeInput.value.trim();
+      if(!title || !code){ alert('Please provide title and code'); return; }
+      try{
+        if(editingCourseId){
+          await fetch(api.courses(editingCourseId), { method: 'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title, code }) });
+          editingCourseId = '';
+        } else {
+          await fetch(api.courses(), { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title, code }) });
+        }
+        courseTitleInput.value=''; courseCodeInput.value='';
+        await loadCourses();
+      }catch(e){ console.error('saveCourse', e); alert('Error saving course'); }
+    });
+
+    window.startEditCourse = function(id){
+      const c = courses.find(x=> x._id === id || x._id === String(id)); if(!c) return; editingCourseId = id; courseTitleInput.value = c.title; courseCodeInput.value = c.code; courseTitleInput.focus();
+    };
+
+    window.deleteCourse = async function(id){ if(!confirm('Delete course?')) return; try{ await fetch(api.courses(id), { method: 'DELETE' }); await loadAll(); }catch(e){ console.error('deleteCourse', e); alert('Error deleting'); } };
+
+    // Student actions
+    saveStudentBtn.addEventListener('click', async ()=>{
+      const name = studentNameInput.value.trim();
+      const email = studentEmailInput.value.trim() || null;
+      if(!name){ alert('Please provide name'); return; }
+      try{
+        if(editingStudentId){
+          await fetch(api.students(editingStudentId), { method: 'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, email }) });
+          editingStudentId = '';
+        } else {
+          await fetch(api.students(), { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, email }) });
+        }
+        studentNameInput.value=''; studentEmailInput.value='';
+        await loadStudents();
+      }catch(e){ console.error('saveStudent', e); alert('Error saving student'); }
+    });
+
+    window.startEditStudent = function(id){ const s = students.find(x=> x._id === id || x._id === String(id)); if(!s) return; editingStudentId = id; studentNameInput.value = s.name; studentEmailInput.value = s.email || ''; studentNameInput.focus(); };
+
+    window.deleteStudent = async function(id){ if(!confirm('Delete student?')) return; try{ await fetch(api.students(id), { method: 'DELETE' }); await loadAll(); }catch(e){ console.error('deleteStudent', e); alert('Error deleting'); } };
+
+    // Register/unregister
+    registerBtn.addEventListener('click', async ()=>{
+      const sid = studentSelect.value; const cid = courseSelect.value; if(!sid || !cid){ alert('Select student and course'); return; }
+      try{ const res = await fetch(api.register(sid), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ courseId: cid }) }); if(!res.ok){ const err = await res.json(); alert(err.error || 'Registration failed'); return; } await loadStudents(); await showStudentDetails(sid); alert('Registered'); }catch(e){ console.error('register', e); alert('Error registering'); }
+    });
+
+    unregisterBtn.addEventListener('click', async ()=>{
+      const sid = studentSelect.value; const cid = courseSelect.value; if(!sid || !cid){ alert('Select student and course'); return; }
+      try{ const res = await fetch(api.unregister(sid), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ courseId: cid }) }); if(!res.ok){ const err = await res.json(); alert(err.error || 'Unregister failed'); return; } await loadStudents(); await showStudentDetails(sid); alert('Unregistered'); }catch(e){ console.error('unregister', e); alert('Error'); }
+    });
+
+    // Student details
+    window.showStudentDetails = async function(id){ if(!id) return; try{ const res = await fetch(api.students(id)); if(!res.ok){ studentDetails.textContent = 'Not found'; return; } const data = await res.json(); studentDetails.innerHTML = `<div><strong>${escapeHtml(data.name)}</strong> <div class='small'>${escapeHtml(data.email||'')}</div></div>`;
+        const regs = data.registeredCourses || [];
+        if(regs.length===0) studentDetails.innerHTML += '<div class="small muted">No registrations</div>';
+        else{
+          const list = regs.map(r=>`<div class='small'>${escapeHtml(r.title)} — ${escapeHtml(r.code)} <span class='muted'>(${new Date(r.registeredAt).toLocaleString()})</span></div>`).join('');
+          studentDetails.innerHTML += list;
+        }
+      }catch(e){ console.error('showStudentDetails', e); }
+    };
+
+    // utils
+    function escapeHtml(s){ if(s===null || s===undefined) return ''; return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[c]); }
+
+    // init
+    loadAll();
+  </script>
+</body>
+</html>
