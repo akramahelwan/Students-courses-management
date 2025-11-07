@@ -47,7 +47,7 @@
       margin-bottom: 1rem;
       flex-wrap: wrap;
     }
-    input {
+    input, select {
       padding: .5rem;
       border-radius: 8px;
       border: none;
@@ -74,17 +74,9 @@
       padding: .5rem;
       text-align: left;
     }
-    td button {
-      margin-right: .3rem;
-    }
-    .msg {
-      margin-top: .5rem;
-      color: var(--success);
-      text-align: center;
-    }
-    @media (max-width: 800px) {
-      .container { grid-template-columns: 1fr; }
-    }
+    td button { margin-right: .3rem; }
+    .msg { margin-top: .5rem; color: var(--success); text-align: center; }
+    @media (max-width: 800px) { .container { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -120,6 +112,7 @@
     </div>
   </div>
 
+  <!-- Registration Section -->
   <div class="card" style="width:90%;max-width:1200px">
     <h2>📚 Manage Registrations</h2>
     <div style="display:flex;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;">
@@ -133,10 +126,10 @@
   </div>
 
   <script>
-    const API = "https://courses-students-management-irwe.onrender.com/api";
+    const API = "/api"; // مسار نسبي
     const msg = document.getElementById("msg");
 
-    // Fetch Courses
+    // ========== Courses ==========
     async function loadCourses() {
       const res = await fetch(API + "/courses");
       const data = await res.json();
@@ -156,36 +149,34 @@
       refreshSelects();
     }
 
-    // Add / Edit Course
     let editingCourse = null;
     document.getElementById("course-form").onsubmit = async e => {
       e.preventDefault();
-      const title = course-title.value;
-      const code = course-code.value;
+      const title = document.getElementById("course-title").value;
+      const code = document.getElementById("course-code").value;
       const method = editingCourse ? "PUT" : "POST";
-      const url = editingCourse ? API + "/courses/" + editingCourse : API + "/courses";
+      const url = editingCourse ? `${API}/courses/${editingCourse}` : `${API}/courses`;
       const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
+        method, headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, code })
       });
       editingCourse = null;
-      course-title.value = "";
-      course-code.value = "";
+      document.getElementById("course-title").value = "";
+      document.getElementById("course-code").value = "";
       loadCourses();
     };
     function editCourse(id, title, code) {
       editingCourse = id;
-      course-title.value = title;
-      course-code.value = code;
+      document.getElementById("course-title").value = title;
+      document.getElementById("course-code").value = code;
     }
     async function deleteCourse(id) {
       if (!confirm("Delete this course?")) return;
-      await fetch(API + "/courses/" + id, { method: "DELETE" });
+      await fetch(`${API}/courses/${id}`, { method: "DELETE" });
       loadCourses();
     }
 
-    // Fetch Students
+    // ========== Students ==========
     async function loadStudents() {
       const res = await fetch(API + "/students");
       const data = await res.json();
@@ -205,54 +196,46 @@
       refreshSelects();
     }
 
-    // Add / Edit Student
     let editingStudent = null;
     document.getElementById("student-form").onsubmit = async e => {
       e.preventDefault();
-      const name = student-name.value;
-      const email = student-email.value;
+      const name = document.getElementById("student-name").value;
+      const email = document.getElementById("student-email").value;
       const method = editingStudent ? "PUT" : "POST";
-      const url = editingStudent ? API + "/students/" + editingStudent : API + "/students";
+      const url = editingStudent ? `${API}/students/${editingStudent}` : `${API}/students`;
       await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
+        method, headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email })
       });
       editingStudent = null;
-      student-name.value = "";
-      student-email.value = "";
+      document.getElementById("student-name").value = "";
+      document.getElementById("student-email").value = "";
       loadStudents();
     };
     function editStudent(id, name, email) {
       editingStudent = id;
-      student-name.value = name;
-      student-email.value = email;
+      document.getElementById("student-name").value = name;
+      document.getElementById("student-email").value = email;
     }
     async function deleteStudent(id) {
       if (!confirm("Delete this student?")) return;
-      await fetch(API + "/students/" + id, { method: "DELETE" });
+      await fetch(`${API}/students/${id}`, { method: "DELETE" });
       loadStudents();
     }
 
-    // Register / Unregister
+    // ========== Registration ==========
     async function refreshSelects() {
-      const [studentsRes, coursesRes] = await Promise.all([
-        fetch(API + "/students"),
-        fetch(API + "/courses")
-      ]);
+      const [studentsRes, coursesRes] = await Promise.all([fetch(API + "/students"), fetch(API + "/courses")]);
       const students = await studentsRes.json();
       const courses = await coursesRes.json();
-
-      const sSel = document.getElementById("student-select");
-      const cSel = document.getElementById("course-select");
-      sSel.innerHTML = students.map(s => `<option value="${s._id}">${s.name}</option>`).join("");
-      cSel.innerHTML = courses.map(c => `<option value="${c._id}">${c.title}</option>`).join("");
+      document.getElementById("student-select").innerHTML = students.map(s => `<option value="${s._id}">${s.name}</option>`).join("");
+      document.getElementById("course-select").innerHTML = courses.map(c => `<option value="${c._id}">${c.title}</option>`).join("");
     }
 
     document.getElementById("register-btn").onclick = async () => {
-      const sid = student-select.value;
-      const cid = course-select.value;
-      const res = await fetch(`${API}/students/${sid}/register`, {
+      const sid = document.getElementById("student-select").value;
+      const cid = document.getElementById("course-select").value;
+      await fetch(`${API}/students/${sid}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ courseId: cid })
@@ -262,8 +245,8 @@
     };
 
     document.getElementById("unregister-btn").onclick = async () => {
-      const sid = student-select.value;
-      const cid = course-select.value;
+      const sid = document.getElementById("student-select").value;
+      const cid = document.getElementById("course-select").value;
       await fetch(`${API}/students/${sid}/unregister`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -274,14 +257,13 @@
     };
 
     async function showRegisteredCourses() {
-      const sid = student-select.value;
-      const res = await fetch(API + "/students/" + sid);
+      const sid = document.getElementById("student-select").value;
+      if (!sid) return;
+      const res = await fetch(`${API}/students/${sid}`);
       const s = await res.json();
       const list = s.registeredCourses || [];
       const div = document.getElementById("registered-courses");
-      div.innerHTML = list.length
-        ? `<ul>${list.map(x => `<li>${x.title} (${x.code})</li>`).join("")}</ul>`
-        : "<p>No registered courses</p>";
+      div.innerHTML = list.length ? `<ul>${list.map(x => `<li>${x.title} (${x.code})</li>`).join("")}</ul>` : "<p>No registered courses</p>";
     }
 
     function showMessage(text) {
@@ -289,6 +271,7 @@
       setTimeout(() => msg.textContent = "", 3000);
     }
 
+    // Initial load
     loadCourses();
     loadStudents();
     setTimeout(showRegisteredCourses, 1000);
