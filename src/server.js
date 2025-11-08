@@ -8,6 +8,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 dotenv.config();
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -20,9 +21,13 @@ const __dirname = path.dirname(__filename);
 await connectDB();
 console.log("✅ Database connected");
 
+// ====== Serve static files ======
+app.use(express.static(path.join(__dirname, "../"))); // Serve index.html and any CSS/JS
+
+// ====== API ROUTES ======
 const API = "/api";
 
-// -------- Courses --------
+// Courses
 app.get(`${API}/courses`, async (req, res) => {
   const courses = await getDB().collection("courses").find().toArray();
   res.json(courses);
@@ -50,7 +55,7 @@ app.delete(`${API}/courses/:id`, async (req, res) => {
   res.json(result);
 });
 
-// -------- Students --------
+// Students
 app.get(`${API}/students`, async (req, res) => {
   const students = await getDB().collection("students").find().toArray();
   res.json(students);
@@ -84,7 +89,7 @@ app.delete(`${API}/students/:id`, async (req, res) => {
   res.json(result);
 });
 
-// -------- Registration --------
+// Registration
 app.post(`${API}/students/:id/register`, async (req, res) => {
   const { id } = req.params;
   const { courseId } = req.body;
@@ -105,11 +110,8 @@ app.post(`${API}/students/:id/unregister`, async (req, res) => {
   res.json({ success: true });
 });
 
-// ====== Serve static files (CSS/JS) ======
-app.use(express.static(path.join(__dirname, ".."))); // يشمل index.html
-
-// ====== Fallback: أي طلب غير API يرجع index.html ======
-app.get(/^(?!\/api).*$/, (req, res) => {
+// ====== Wildcard route (بعد كل الـ API) ======
+app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../index.html"));
 });
 
