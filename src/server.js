@@ -5,6 +5,7 @@ import { connectDB, getDB } from "./db.js";
 import { ObjectId } from "mongodb";
 import path from "path";
 import { fileURLToPath } from "url";
+
 dotenv.config();
 
 const app = express();
@@ -13,16 +14,16 @@ app.use(express.json());
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-app.use(express.static(path.join(__dirname, "./")));
+app.use(express.static(path.join(__dirname, "../"))); // serve index.html from root
 
+// Connect DB
 await connectDB();
 const db = getDB();
 const coursesCol = db.collection("courses");
 const studentsCol = db.collection("students");
 
-
-// health check
-app.get("/api/health", async (req, res) => {
+// Health check
+app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
 
@@ -56,8 +57,8 @@ app.put("/api/courses/:id", async (req, res) => {
     { $set: { title, code } },
     { returnDocument: "after" }
   );
-  if (!result) return res.status(404).json({ error: "Not found" });
-  res.json(result);
+  if (!result.value) return res.status(404).json({ error: "Not found" });
+  res.json(result.value);
 });
 
 app.delete("/api/courses/:id", async (req, res) => {
@@ -98,8 +99,8 @@ app.put("/api/students/:id", async (req, res) => {
     { $set: { name, email: email || null } },
     { returnDocument: "after" }
   );
-  if (!result) return res.status(404).json({ error: "Not found" });
-  res.json(result);
+  if (!result.value) return res.status(404).json({ error: "Not found" });
+  res.json(result.value);
 });
 
 app.delete("/api/students/:id", async (req, res) => {
@@ -113,6 +114,7 @@ app.post("/api/students/:id/register", async (req, res) => {
   const studentId = req.params.id;
   const { courseId } = req.body;
   if (!courseId) return res.status(400).json({ error: "courseId is required" });
+
   const student = await studentsCol.findOne({ _id: new ObjectId(studentId) });
   const course = await coursesCol.findOne({ _id: new ObjectId(courseId) });
   if (!student) return res.status(404).json({ error: "Student not found" });
@@ -136,7 +138,7 @@ app.post("/api/students/:id/register", async (req, res) => {
     { $push: { registeredCourses: embedded } },
     { returnDocument: "after" }
   );
-  res.json(updated);
+  res.json(updated.value);
 });
 
 app.post("/api/students/:id/unregister", async (req, res) => {
@@ -145,12 +147,13 @@ app.post("/api/students/:id/unregister", async (req, res) => {
   if (!courseId) return res.status(400).json({ error: "courseId is required" });
   const student = await studentsCol.findOne({ _id: new ObjectId(studentId) });
   if (!student) return res.status(404).json({ error: "Student not found" });
+
   const updated = await studentsCol.findOneAndUpdate(
     { _id: new ObjectId(studentId) },
     { $pull: { registeredCourses: { courseId } } },
     { returnDocument: "after" }
   );
-  res.json(updated);
+  res.json(updated.value);
 });
 
 // === Demo seeding ===
@@ -174,10 +177,11 @@ app.post("/api/seed", async (req, res) => {
   res.json({ ok: true });
 });
 
-// ✅ FIX: Express 5 wildcard route
-app.use((req, res) => {
+// ✅ Wildcard route fixed to avoid breaking /api
+app.get("*", (req, res) => {
+  if (req.path.startsWith("/api")) return res.status(404).json({ error: "Not found" });
   res.sendFile(path.join(__dirname, "../index.html"));
 });
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Server http://localhost:${port}`));
+app.listen(port, () => console.log(`Server running at http://localhost:${port}`));
