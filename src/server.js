@@ -1,4 +1,4 @@
-// src/server.js
+// server.js
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -13,180 +13,105 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ====== ES Modules: __dirname ======
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Serve static files if needed
-app.use(express.static(path.join(__dirname, "../")));
-
-// Connect to DB
+// ====== Connect to DB ======
 await connectDB();
-const db = getDB();
-const coursesCol = db.collection(process.env.COURSES_COLLECTION || "courses");
-const studentsCol = db.collection(process.env.STUDENTS_COLLECTION || "students");
-
 console.log("✅ Database connected");
 
-// === Health check ===
-app.get("/api/health", (req, res) => {
-  res.json({ ok: true });
+// ====== API ROUTES ======
+const API = "/api";
+
+// -------- Courses --------
+app.get(`${API}/courses`, async (req, res) => {
+  const courses = await getDB().collection("courses").find().toArray();
+  res.json(courses);
 });
 
-// === Courses CRUD ===
-app.get("/api/courses", async (req, res) => {
-  const list = await coursesCol.find({}).sort({ title: 1 }).toArray();
-  res.json(list);
-});
-
-app.get("/api/courses/:id", async (req, res) => {
-  const doc = await coursesCol.findOne({ _id: new ObjectId(req.params.id) });
-  if (!doc) return res.status(404).json({ error: "Not found" });
-  res.json(doc);
-});
-
-app.post("/api/courses", async (req, res) => {
+app.post(`${API}/courses`, async (req, res) => {
   const { title, code } = req.body;
-  if (!title || !code) return res.status(400).json({ error: "title and code are required" });
-  const exists = await coursesCol.findOne({ code });
-  if (exists) return res.status(409).json({ error: "Course code already exists" });
-  const result = await coursesCol.insertOne({ title, code });
-  const saved = await coursesCol.findOne({ _id: result.insertedId });
-  res.status(201).json(saved);
+  const result = await getDB().collection("courses").insertOne({ title, code });
+  res.json(result);
 });
 
-app.put("/api/courses/:id", async (req, res) => {
+app.put(`${API}/courses/:id`, async (req, res) => {
+  const { id } = req.params;
   const { title, code } = req.body;
-  if (!title || !code) return res.status(400).json({ error: "title and code are required" });
-  const result = await coursesCol.findOneAndUpdate(
-    { _id: new ObjectId(req.params.id) },
-    { $set: { title, code } },
-    { returnDocument: "after" }
+  const result = await getDB().collection("courses").updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { title, code } }
   );
-  if (!result.value) return res.status(404).json({ error: "Not found" });
-  res.json(result.value);
+  res.json(result);
 });
 
-app.delete("/api/courses/:id", async (req, res) => {
-  const id = req.params.id;
-  const result = await coursesCol.deleteOne({ _id: new ObjectId(id) });
-  if (result.deletedCount === 0) return res.status(404).json({ error: "Not found" });
-  await studentsCol.updateMany({}, { $pull: { registeredCourses: { courseId: id } } });
-  res.json({ ok: true });
+app.delete(`${API}/courses/:id`, async (req, res) => {
+  const { id } = req.params;
+  const result = await getDB().collection("courses").deleteOne({ _id: new ObjectId(id) });
+  res.json(result);
 });
 
-// === Students CRUD ===
-app.get("/api/students", async (req, res) => {
-  const { name } = req.query;
-  const filter = name ? { name: { $regex: name, $options: "i" } } : {};
-  const list = await studentsCol.find(filter).sort({ name: 1 }).toArray();
-  res.json(list);
+// -------- Students --------
+app.get(`${API}/students`, async (req, res) => {
+  const students = await getDB().collection("students").find().toArray();
+  res.json(students);
 });
 
-app.get("/api/students/:id", async (req, res) => {
-  const doc = await studentsCol.findOne({ _id: new ObjectId(req.params.id) });
-  if (!doc) return res.status(404).json({ error: "Not found" });
-  res.json(doc);
+app.get(`${API}/students/:id`, async (req, res) => {
+  const { id } = req.params;
+  const student = await getDB().collection("students").findOne({ _id: new ObjectId(id) });
+  res.json(student);
 });
 
-app.post("/api/students", async (req, res) => {
+app.post(`${API}/students`, async (req, res) => {
   const { name, email } = req.body;
-  if (!name) return res.status(400).json({ error: "name is required" });
-  const result = await studentsCol.insertOne({ name, email: email || null, registeredCourses: [] });
-  const saved = await studentsCol.findOne({ _id: result.insertedId });
-  res.status(201).json(saved);
+  const result = await getDB().collection("students").insertOne({ name, email, registeredCourses: [] });
+  res.json(result);
 });
 
-app.put("/api/students/:id", async (req, res) => {
+app.put(`${API}/students/:id`, async (req, res) => {
+  const { id } = req.params;
   const { name, email } = req.body;
-  if (!name) return res.status(400).json({ error: "name is required" });
-  const result = await studentsCol.findOneAndUpdate(
-    { _id: new ObjectId(req.params.id) },
-    { $set: { name, email: email || null } },
-    { returnDocument: "after" }
+  const result = await getDB().collection("students").updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { name, email } }
   );
-  if (!result.value) return res.status(404).json({ error: "Not found" });
-  res.json(result.value);
+  res.json(result);
 });
 
-app.delete("/api/students/:id", async (req, res) => {
-  const result = await studentsCol.deleteOne({ _id: new ObjectId(req.params.id) });
-  if (result.deletedCount === 0) return res.status(404).json({ error: "Not found" });
-  res.json({ ok: true });
+app.delete(`${API}/students/:id`, async (req, res) => {
+  const { id } = req.params;
+  const result = await getDB().collection("students").deleteOne({ _id: new ObjectId(id) });
+  res.json(result);
 });
 
-// === Register / Unregister Courses ===
-app.post("/api/students/:id/register", async (req, res) => {
-  const studentId = req.params.id;
+// -------- Registration --------
+app.post(`${API}/students/:id/register`, async (req, res) => {
+  const { id } = req.params;
   const { courseId } = req.body;
-  if (!courseId) return res.status(400).json({ error: "courseId is required" });
-
-  const student = await studentsCol.findOne({ _id: new ObjectId(studentId) });
-  const course = await coursesCol.findOne({ _id: new ObjectId(courseId) });
-  if (!student) return res.status(404).json({ error: "Student not found" });
-  if (!course) return res.status(404).json({ error: "Course not found" });
-
-  const already = await studentsCol.findOne({
-    _id: new ObjectId(studentId),
-    "registeredCourses.courseId": courseId
-  });
-  if (already) return res.status(409).json({ error: "Already registered" });
-
-  const embedded = {
-    courseId: course._id.toString(),
-    title: course.title,
-    code: course.code,
-    registeredAt: new Date().toISOString()
-  };
-
-  const updated = await studentsCol.findOneAndUpdate(
-    { _id: new ObjectId(studentId) },
-    { $push: { registeredCourses: embedded } },
-    { returnDocument: "after" }
+  await getDB().collection("students").updateOne(
+    { _id: new ObjectId(id) },
+    { $addToSet: { registeredCourses: new ObjectId(courseId) } }
   );
-  res.json(updated.value);
+  res.json({ success: true });
 });
 
-app.post("/api/students/:id/unregister", async (req, res) => {
-  const studentId = req.params.id;
+app.post(`${API}/students/:id/unregister`, async (req, res) => {
+  const { id } = req.params;
   const { courseId } = req.body;
-  if (!courseId) return res.status(400).json({ error: "courseId is required" });
-  const student = await studentsCol.findOne({ _id: new ObjectId(studentId) });
-  if (!student) return res.status(404).json({ error: "Student not found" });
-
-  const updated = await studentsCol.findOneAndUpdate(
-    { _id: new ObjectId(studentId) },
-    { $pull: { registeredCourses: { courseId } } },
-    { returnDocument: "after" }
+  await getDB().collection("students").updateOne(
+    { _id: new ObjectId(id) },
+    { $pull: { registeredCourses: new ObjectId(courseId) } }
   );
-  res.json(updated.value);
+  res.json({ success: true });
 });
 
-// === Demo seeding ===
-app.post("/api/seed", async (req, res) => {
-  const courses = [
-    { title: "Intro to Programming", code: "CS101" },
-    { title: "Data Structures", code: "CS201" },
-    { title: "Web Development", code: "WEB101" },
-    { title: "Databases", code: "DB101" },
-    { title: "Operating Systems", code: "OS201" }
-  ];
-  const students = [
-    { name: "Alice Johnson", email: "alice@example.com", registeredCourses: [] },
-    { name: "Bob Smith", email: "bob@example.com", registeredCourses: [] },
-    { name: "Carla Haddad", email: "carla@example.com", registeredCourses: [] }
-  ];
-  await coursesCol.deleteMany({});
-  await studentsCol.deleteMany({});
-  await coursesCol.insertMany(courses);
-  await studentsCol.insertMany(students);
-  res.json({ ok: true });
+// ====== Serve index.html for all other routes (Wildcard) ======
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../index.html')); // تأكد أن index.html في root
 });
 
-// === Wildcard route for SPA (Express 5 compatible) ===
-app.get("/*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../index.html"));
-});
-
-// === Start server ===
+// ====== Start Server ======
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Server running at http://localhost:${port}`));
