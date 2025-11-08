@@ -13,18 +13,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ====== ES Modules: __dirname ======
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ====== Connect to DB ======
 await connectDB();
 console.log("✅ Database connected");
 
-// ====== Serve static files ======
-app.use(express.static(path.join(__dirname, "../"))); // Serve index.html and any CSS/JS
+// ===== Serve static files =====
+app.use(express.static(path.join(__dirname, "../")));
 
-// ====== API ROUTES ======
+// ===== API Routes =====
 const API = "/api";
 
 // Courses
@@ -110,11 +108,11 @@ app.post(`${API}/students/:id/unregister`, async (req, res) => {
   res.json({ success: true });
 });
 
-// ====== Wildcard route (بعد كل الـ API) ======
-app.get("*", (req, res) => {
+// ===== Wildcard route بعد كل API routes =====
+app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, "../index.html"));
 });
 
-// ====== Start Server ======
+// ===== Start Server =====
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Server running at http://localhost:${port}`));
