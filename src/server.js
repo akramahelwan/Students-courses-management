@@ -1,3 +1,4 @@
+// src/server.js
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -14,15 +15,19 @@ app.use(express.json());
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-app.use(express.static(path.join(__dirname, "../"))); // serve index.html from root
 
-// Connect DB
+// Serve static files if needed
+app.use(express.static(path.join(__dirname, "../")));
+
+// Connect to DB
 await connectDB();
 const db = getDB();
-const coursesCol = db.collection("courses");
-const studentsCol = db.collection("students");
+const coursesCol = db.collection(process.env.COURSES_COLLECTION || "courses");
+const studentsCol = db.collection(process.env.STUDENTS_COLLECTION || "students");
 
-// Health check
+console.log("✅ Database connected");
+
+// === Health check ===
 app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
@@ -109,7 +114,7 @@ app.delete("/api/students/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
-// === Register / Unregister ===
+// === Register / Unregister Courses ===
 app.post("/api/students/:id/register", async (req, res) => {
   const studentId = req.params.id;
   const { courseId } = req.body;
@@ -177,11 +182,11 @@ app.post("/api/seed", async (req, res) => {
   res.json({ ok: true });
 });
 
-// ✅ Wildcard route fixed to avoid breaking /api
-app.get("*", (req, res) => {
-  if (req.path.startsWith("/api")) return res.status(404).json({ error: "Not found" });
+// === Wildcard route for SPA (Express 5 compatible) ===
+app.get("/*", (req, res) => {
   res.sendFile(path.join(__dirname, "../index.html"));
 });
 
+// === Start server ===
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Server running at http://localhost:${port}`));
