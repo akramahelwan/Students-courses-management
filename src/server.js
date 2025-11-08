@@ -107,9 +107,12 @@ app.post(`${API}/students/:id/unregister`, async (req, res) => {
   res.json({ success: true });
 });
 
+// ====== Serve static files ======
+app.use(express.static(path.join(__dirname)));
+
 // ====== Serve index.html for all other routes (Wildcard) ======
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../index.html')); // تأكد أن index.html في root
+  res.sendFile(path.join(__dirname, 'index.html')); // index.html موجود داخل src
 });
 
 // ====== Start Server ======
