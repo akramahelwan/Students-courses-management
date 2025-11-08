@@ -8,7 +8,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 dotenv.config();
-
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -21,7 +20,6 @@ const __dirname = path.dirname(__filename);
 await connectDB();
 console.log("✅ Database connected");
 
-// ====== API ROUTES ======
 const API = "/api";
 
 // -------- Courses --------
@@ -107,12 +105,12 @@ app.post(`${API}/students/:id/unregister`, async (req, res) => {
   res.json({ success: true });
 });
 
-// ====== Serve static files ======
-app.use(express.static(path.join(__dirname)));
+// ====== Serve static files (CSS/JS) ======
+app.use(express.static(path.join(__dirname, ".."))); // يشمل index.html
 
-// ====== Serve index.html for all other routes (Wildcard) ======
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html')); // index.html موجود داخل src
+// ====== Fallback: أي طلب غير API يرجع index.html ======
+app.get(/^(?!\/api).*$/, (req, res) => {
+  res.sendFile(path.join(__dirname, "../index.html"));
 });
 
 // ====== Start Server ======
